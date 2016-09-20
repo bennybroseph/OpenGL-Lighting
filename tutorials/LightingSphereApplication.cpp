@@ -44,15 +44,15 @@ bool LightingSphereApplication::startup() {
 	m_ambientLight = vec3(0.25f);
 
 	// set up material
-	m_material.diffuse = vec3(1);
-	m_material.ambient = vec3(1);
-	m_material.specular = vec3(1);
+	m_material.diffuse = vec3(255.f / 255.f, 255.f / 255, 255.f / 255.f);
+	m_material.ambient = vec3(255.f / 255.f, 255.f / 255, 255.f / 255.f);
+	m_material.specular = vec3(255.f / 255.f, 255.f / 255, 255.f / 255.f);
 	m_material.specularPower = 64;
 
 	// generate a sphere with radius 5
 	generateSphere(32, 32, m_vao, m_vbo, m_ibo, m_indexCount);
 	m_modelMatrix = glm::scale(vec3(5));
-		
+
 	// load a shader
 	m_shader = new Shader();
 	if (m_shader->loadShader(GL_VERTEX_SHADER, "./bin/shaders/phong.vert") == false) {
@@ -89,7 +89,7 @@ void LightingSphereApplication::shutdown() {
 }
 
 bool LightingSphereApplication::update(float deltaTime) {
-	
+
 	// close the application if the window closes or we press escape
 	if (glfwWindowShouldClose(m_window) ||
 		glfwGetKey(m_window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
@@ -100,7 +100,7 @@ bool LightingSphereApplication::update(float deltaTime) {
 
 	// rotate light direction
 	float time = (float)glfwGetTime();
-	m_directionalLight.direction = vec3(sinf(time), 0, cosf(time));
+	m_directionalLight.direction = vec3(sinf(0), -1.f, cosf(0));
 
 	// clear the gizmos and add a transform and grid
 	Gizmos::clear();
@@ -111,9 +111,9 @@ bool LightingSphereApplication::update(float deltaTime) {
 	// for now let's add a grid to the gizmos
 	for (int i = 0; i < 21; ++i) {
 		Gizmos::addLine(vec3(-10 + i, 0, 10), vec3(-10 + i, 0, -10),
-						i == 10 ? white : black);
+			i == 10 ? white : black);
 		Gizmos::addLine(vec3(10, 0, -10 + i), vec3(-10, 0, -10 + i),
-						i == 10 ? white : black);
+			i == 10 ? white : black);
 	}
 
 	Gizmos::addTransform(mat4(1));
@@ -149,34 +149,34 @@ void LightingSphereApplication::draw() {
 	glUniformMatrix4fv(matUniform, 1, GL_TRUE, &normalMatrix[0][0]);
 
 	// bind light data (not using structs or uniform block for now)
-	int lightUniform = m_shader->getUniform("lightDirection");
+	int lightUniform = m_shader->getUniform("LightDirection");
 	glUniform3fv(lightUniform, 1, &m_directionalLight.direction[0]);
 
-	lightUniform = m_shader->getUniform("Id");
-	glUniform3fv(lightUniform, 1, &m_directionalLight.diffuse[0]);
-
-	lightUniform = m_shader->getUniform("Is");
-	glUniform3fv(lightUniform, 1, &m_directionalLight.specular[0]);
-
 	// bind ambient light
-	lightUniform = m_shader->getUniform("Ia");
+	lightUniform = m_shader->getUniform("LightAmbient");
 	glUniform3fv(lightUniform, 1, &m_ambientLight[0]);
 
-	// bind camera position for specular calculation
-	int cameraUniform = m_shader->getUniform("cameraPosition");
-	glUniform3fv(cameraUniform, 1, &m_camera->getTransform()[3][0]);
+	lightUniform = m_shader->getUniform("LightDiffuse");
+	glUniform3fv(lightUniform, 1, &m_directionalLight.diffuse[0]);
+
+	lightUniform = m_shader->getUniform("LightSpecular");
+	glUniform3fv(lightUniform, 1, &m_directionalLight.specular[0]);
 
 	// bind material
-	int materialUniform = m_shader->getUniform("Ka");
+	int materialUniform = m_shader->getUniform("MaterialAmbient");
 	glUniform3fv(materialUniform, 1, &m_material.ambient[0]);
 
-	materialUniform = m_shader->getUniform("Kd");
+	materialUniform = m_shader->getUniform("MaterialDiffuse");
 	glUniform3fv(materialUniform, 1, &m_material.diffuse[0]);
 
-	materialUniform = m_shader->getUniform("Ks");
+	materialUniform = m_shader->getUniform("MaterialSpecular");
 	glUniform3fv(materialUniform, 1, &m_material.specular[0]);
 
-	materialUniform = m_shader->getUniform("specularPower");
+	// bind camera position for specular calculation
+	int cameraUniform = m_shader->getUniform("CameraPosition");
+	glUniform3fv(cameraUniform, 1, &m_camera->getTransform()[3][0]);
+
+	materialUniform = m_shader->getUniform("SpecularPower");
 	glUniform1f(materialUniform, m_material.specularPower);
 
 	// draw mesh as a triangle mesh
@@ -195,8 +195,8 @@ void LightingSphereApplication::draw() {
 }
 
 void LightingSphereApplication::generateSphere(unsigned int segments, unsigned int rings,
-											   unsigned int& vao, unsigned int& vbo, unsigned int& ibo,
-											   unsigned int& indexCount) {
+	unsigned int& vao, unsigned int& vbo, unsigned int& ibo,
+	unsigned int& indexCount) {
 
 	unsigned int vertCount = (segments + 1) * (rings + 2);
 	indexCount = segments * (rings + 1) * 6;
@@ -220,6 +220,7 @@ void LightingSphereApplication::generateSphere(unsigned int segments, unsigned i
 
 			vertex->position = vec4(x0 * 0.5f, y0 * 0.5f, z0 * 0.5f, 1);
 			vertex->normal = vec4(x0, y0, z0, 0);
+			vertex->colour = vec4(200.f / 255.f, 0.f / 255, 200.f / 255.f, 1.f);
 
 			vertex->tangent = vec4(glm::sin(segment * segmentAngle + glm::half_pi<float>()), 0, glm::cos(segment * segmentAngle + glm::half_pi<float>()), 0);
 
@@ -265,17 +266,21 @@ void LightingSphereApplication::generateSphere(unsigned int segments, unsigned i
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, sizeof(AIEVertex), 0);
 
+	// colour
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(AIEVertex), (void*)sizeof(vec4));
+
 	// normals
 	glEnableVertexAttribArray(2);
-	glVertexAttribPointer(2, 4, GL_FLOAT, GL_TRUE, sizeof(AIEVertex), (void*)(sizeof(vec4)*2));
+	glVertexAttribPointer(2, 4, GL_FLOAT, GL_TRUE, sizeof(AIEVertex), (void*)(sizeof(vec4) * 2));
 
 	// texcoords
 	glEnableVertexAttribArray(3);
-	glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, sizeof(AIEVertex), (void*)(sizeof(vec4)*3));
+	glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, sizeof(AIEVertex), (void*)(sizeof(vec4) * 3));
 
 	// tangents
 	glEnableVertexAttribArray(4);
-	glVertexAttribPointer(4, 4, GL_FLOAT, GL_TRUE, sizeof(AIEVertex), (void*)(sizeof(vec4)*3+sizeof(vec2)));
+	glVertexAttribPointer(4, 4, GL_FLOAT, GL_TRUE, sizeof(AIEVertex), (void*)(sizeof(vec4) * 3 + sizeof(vec2)));
 
 	// safety
 	glBindVertexArray(0);
